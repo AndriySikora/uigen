@@ -46,9 +46,7 @@ describe("ChatContext", () => {
 
   const mockUseAIChat = {
     messages: [],
-    input: "",
-    handleInputChange: vi.fn(),
-    handleSubmit: vi.fn(),
+    sendMessage: vi.fn(),
     status: "idle",
   };
 
@@ -96,15 +94,13 @@ describe("ChatContext", () => {
       </ChatProvider>
     );
 
-    expect(useAIChat).toHaveBeenCalledWith({
-      api: "/api/chat",
-      initialMessages,
-      body: {
-        files: mockFileSystem.serialize(),
-        projectId: "test-project",
-      },
-      onToolCall: expect.any(Function),
-    });
+    expect(useAIChat).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messages: initialMessages,
+        transport: expect.objectContaining({ api: "/api/chat" }),
+        onToolCall: expect.any(Function),
+      })
+    );
 
     expect(screen.getByTestId("messages").textContent).toBe("2");
   });
@@ -156,8 +152,6 @@ describe("ChatContext", () => {
 
     (useAIChat as any).mockReturnValue({
       ...mockUseAIChat,
-      handleInputChange: mockHandleInputChange,
-      handleSubmit: mockHandleSubmit,
       status: "loading",
     });
 
