@@ -1,6 +1,6 @@
 import type { FileNode } from "@/lib/file-system";
 import { VirtualFileSystem } from "@/lib/file-system";
-import { streamText, stepCountIs } from "ai";
+import { streamText, stepCountIs, convertToModelMessages } from "ai";
 import { buildStrReplaceTool } from "@/lib/tools/str-replace";
 import { buildFileManagerTool } from "@/lib/tools/file-manager";
 import { prisma } from "@/lib/prisma";
@@ -16,17 +16,20 @@ export async function POST(req: Request) {
   }: { messages: any[]; files: Record<string, FileNode>; projectId?: string } =
     await req.json();
 
-  messages.unshift({
-    role: "system",
-    content: generationPrompt,
-    providerOptions: {
-      anthropic: { cacheControl: { type: "ephemeral" } },
-    },
-  });
-
   // Reconstruct the VirtualFileSystem from serialized data
   const fileSystem = new VirtualFileSystem();
   fileSystem.deserializeFromNodes(files);
+
+  const modelMessages = [
+    {
+      role: "system" as const,
+      content: generationPrompt,
+      providerOptions: {
+        anthropic: { cacheControl: { type: "ephemeral" } },
+      },
+    },
+    ...(await convertToModelMessages(messages)),
+  ];
 
   const model = getLanguageModel();
   // Use fewer steps for mock provider to prevent repetition
@@ -34,7 +37,7 @@ export async function POST(req: Request) {
   const maxSteps = isMockProvider ? 4 : 40;
   const result = streamText({
     model,
-    messages,
+    messages: modelMessages,
     maxTokens: 10_000,
     maxSteps,
     stopWhen: stepCountIs(maxSteps),
@@ -56,12 +59,9 @@ export async function POST(req: Request) {
             return;
           }
 
-          // Get the messages from the response
-          const responseMessages = response.messages || [];
-          // Combine original messages with response messages
           const allMessages = [
-            ...messages.filter((m: any) => m.role !== "system"),
-            ...responseMessages,
+            ...messages,
+            ...(response.messages || []),
           ];
 
           await prisma.project.update({

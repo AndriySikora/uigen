@@ -55,13 +55,34 @@ export function ChatProvider({
     []
   );
 
+  const processedToolCallIds = useRef(new Set<string>());
+
   const { messages, sendMessage, status } = useAIChat({
     messages: initialMessages,
     transport,
-    onToolCall: ({ toolCall }) => {
-      handleToolCall(toolCall as any);
-    },
   });
+
+  useEffect(() => {
+    for (const message of messages) {
+      if (message.role !== "assistant") continue;
+      for (const part of message.parts) {
+        const p = part as any;
+        const isStaticToolPart =
+          typeof part.type === "string" &&
+          part.type.startsWith("tool-") &&
+          part.type !== "dynamic-tool";
+        if (
+          isStaticToolPart &&
+          p.state === "output-available" &&
+          !processedToolCallIds.current.has(p.toolCallId)
+        ) {
+          processedToolCallIds.current.add(p.toolCallId);
+          const toolName = part.type.slice("tool-".length);
+          handleToolCall({ toolName, args: p.input });
+        }
+      }
+    }
+  }, [messages, handleToolCall]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);

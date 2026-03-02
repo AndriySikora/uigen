@@ -1,12 +1,9 @@
 import { Loader2 } from "lucide-react";
 
 interface ToolInvocationDisplayProps {
-  toolInvocation: {
-    state: string;
-    toolName: string;
-    args: Record<string, unknown>;
-    result?: unknown;
-  };
+  toolName: string;
+  input: Record<string, unknown>;
+  state: string;
 }
 
 function getLabel(
@@ -45,11 +42,12 @@ function getLabel(
 }
 
 export function ToolInvocationDisplay({
-  toolInvocation,
+  toolName,
+  input,
+  state,
 }: ToolInvocationDisplayProps) {
-  const completed =
-    toolInvocation.state === "result" && toolInvocation.result != null;
-  const label = getLabel(toolInvocation.toolName, toolInvocation.args, completed);
+  const completed = state === "output-available";
+  const label = getLabel(toolName, input, completed);
 
   return (
     <div className="inline-flex items-center gap-2 mt-2 px-3 py-1.5 bg-neutral-50 rounded-lg text-xs font-mono border border-neutral-200">

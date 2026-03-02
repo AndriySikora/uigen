@@ -75,13 +75,30 @@ export function MessageList({ messages, isLoading }: MessageListProps) {
                                 <span className="text-sm text-neutral-700">{part.reasoning}</span>
                               </div>
                             );
-                          case "tool-invocation":
+                          case "dynamic-tool": {
                             return (
                               <ToolInvocationDisplay
                                 key={partIndex}
-                                toolInvocation={part.toolInvocation}
+                                toolName={part.toolName}
+                                input={(part.input as Record<string, unknown>) ?? {}}
+                                state={part.state}
                               />
                             );
+                          }
+                          default: {
+                            if (typeof part.type === "string" && part.type.startsWith("tool-")) {
+                              const p = part as any;
+                              return (
+                                <ToolInvocationDisplay
+                                  key={partIndex}
+                                  toolName={part.type.slice("tool-".length)}
+                                  input={p.input ?? {}}
+                                  state={p.state ?? ""}
+                                />
+                              );
+                            }
+                            return null;
+                          }
                           case "source":
                             return (
                               <div key={partIndex} className="mt-2 text-xs text-neutral-500">
@@ -90,8 +107,6 @@ export function MessageList({ messages, isLoading }: MessageListProps) {
                             );
                           case "step-start":
                             return partIndex > 0 ? <hr key={partIndex} className="my-3 border-neutral-200" /> : null;
-                          default:
-                            return null;
                         }
                       })}
                       {isLoading &&
